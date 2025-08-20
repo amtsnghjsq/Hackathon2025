@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src %CSP_SOURCE% https: data:; style-src %CSP_SOURCE%; script-src 'nonce-%NONCE%' https:; connect-src %CSP_SOURCE% https:; font-src %CSP_SOURCE%;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="%STYLE_URI%" />
+  <title>JSQ buddy</title>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="hdr">
+        <img src="%LOGO_URI%" alt="JSQ" class="logo" />
+        <h2>JSQ buddy</h2>
+      </div>
+      <div class="status" id="status"></div>
+    </header>
+
+    <main id="chat">
+      <!-- Chat messages will render here -->
+    </main>
+
+    <footer>
+      <button id="newChat" class="secondary">New Chat</button>
+      <textarea id="prompt" rows="3" placeholder="Ask something... (Cmd+Enter to send)"></textarea>
+      <div class="actions">
+        <button id="send">Send</button>
+        <button id="cancel" class="secondary">Cancel</button>
+      </div>
+    </footer>
+  </div>
+
+  <script nonce="%NONCE%">window.__LOADER_JSON_URI__ = '%ANIM_URI%';</script>
+  <script nonce="%NONCE%" src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+  <script nonce="%NONCE%" src="%SCRIPT_URI%"></script>
+</body>
+</html>
+
+

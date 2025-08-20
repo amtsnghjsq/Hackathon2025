@@ -1,0 +1,46 @@
+{
+  "name": "chatbot-assistant",
+  "displayName": "JSQ buddy",
+  "publisher": "your-name",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.88.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:chatbotAssistant.open"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "chatbotAssistant.open", "title": "JSQ buddy: Open", "category": "JSQ buddy" }
+    ],
+    "configuration": {
+      "title": "JSQ buddy",
+      "properties": {
+        "chatbotAssistant.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "(Unused) Previous OpenAI API key setting.",
+          "scope": "application"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "server": "node server/server.js"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.88.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-agent-runtime": "^3.627.0",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
+
