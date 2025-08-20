@@ -127,6 +127,7 @@
   let currentAssistantEl = null;
   let currentAssistantBuffer = '';
   let currentLoader = null;
+  let currentAssistantContentEl = null;
   window.addEventListener('message', (event) => {
     const msg = event.data || {};
     switch (msg.type) {
@@ -146,7 +147,27 @@
         currentAssistantEl.className = 'msg assistant empty';
         currentAssistantEl.innerHTML = '';
         currentAssistantBuffer = '';
-        // loader placeholder
+
+        // Assistant header animation (persists)
+        const head = document.createElement('div');
+        head.className = 'assist-head';
+        const headAnim = document.createElement('div');
+        headAnim.className = 'anim';
+        head.appendChild(headAnim);
+        try {
+          const auri = window.__ASSIST_ANIM_URI__;
+          if (auri && window.lottie) {
+            window.lottie.loadAnimation({ container: headAnim, renderer: 'svg', loop: true, autoplay: true, path: auri });
+          }
+        } catch {}
+        currentAssistantEl.appendChild(head);
+
+        // Content container where text will render (so header persists)
+        currentAssistantContentEl = document.createElement('div');
+        currentAssistantContentEl.className = 'assistant-content';
+        currentAssistantEl.appendChild(currentAssistantContentEl);
+
+        // loader placeholder (overlaid)
         currentLoader = document.createElement('div');
         currentLoader.className = 'loader';
         const animHolder = document.createElement('div');
@@ -154,7 +175,7 @@
         animHolder.style.width = '120px';
         animHolder.style.height = '120px';
         currentLoader.appendChild(animHolder);
-        // Try to load Lottie animation
+        // Try to load Lottie animation for loader
         try {
           const uri = window.__LOADER_JSON_URI__;
           if (uri && window.lottie) {
@@ -176,6 +197,10 @@
         if (!currentAssistantEl) {
           currentAssistantEl = document.createElement('div');
           currentAssistantEl.className = 'msg assistant';
+          // ensure content container
+          currentAssistantContentEl = document.createElement('div');
+          currentAssistantContentEl.className = 'assistant-content';
+          currentAssistantEl.appendChild(currentAssistantContentEl);
           chat.appendChild(currentAssistantEl);
         }
         if (currentLoader && currentLoader.parentElement) {
@@ -184,7 +209,12 @@
         }
         currentAssistantEl.classList.remove('empty');
         currentAssistantBuffer += msg.delta || '';
-        currentAssistantEl.innerHTML = markdownToHtml(currentAssistantBuffer);
+        if (!currentAssistantContentEl) {
+          currentAssistantContentEl = document.createElement('div');
+          currentAssistantContentEl.className = 'assistant-content';
+          currentAssistantEl.appendChild(currentAssistantContentEl);
+        }
+        currentAssistantContentEl.innerHTML = markdownToHtml(currentAssistantBuffer);
         chat.scrollTop = chat.scrollHeight;
         break;
       }
@@ -197,6 +227,7 @@
         if (currentAssistantEl) currentAssistantEl.classList.remove('empty');
         currentAssistantEl = null;
         currentAssistantBuffer = '';
+        currentAssistantContentEl = null;
         break;
       case 'error':
         setBusy(false);

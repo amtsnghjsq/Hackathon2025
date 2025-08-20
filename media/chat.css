@@ -14,6 +14,8 @@ main#chat { padding: 12px; overflow-y: auto; display: flex; flex-direction: colu
 .msg.user { background: rgba(125, 125, 125, 0.08); }
 .msg.assistant { background: rgba(0, 122, 204, 0.08); position: relative; }
 .msg.assistant.empty { min-height: 120px; }
+.msg .assist-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.msg .assist-head .anim { width: 32px; height: 32px; }
 .msg.error { color: #f44; border-color: #f44; background: rgba(255,0,0,0.06); }
 .loader { position: absolute; inset: 0; display: grid; place-items: center; padding: 0; }
 .loader .anim { width: 120px; height: 120px; }

@@ -96,6 +96,7 @@ export class ChatPanel {
 		const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaPath, 'chat.css'));
 		const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaPath, 'jsqlogo.png'));
 		const animUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaPath, 'Loading animation.json'));
+		const assistAnimUri = webview.asWebviewUri(vscode.Uri.joinPath(mediaPath, 'assistant response.json'));
 		const nonce = getNonce();
 
 		// Replace placeholders in HTML template
@@ -104,6 +105,7 @@ export class ChatPanel {
 			.replace(/%STYLE_URI%/g, String(styleUri))
 			.replace(/%LOGO_URI%/g, String(logoUri))
 			.replace(/%ANIM_URI%/g, String(animUri))
+			.replace(/%ASSIST_ANIM_URI%/g, String(assistAnimUri))
 			.replace(/%CSP_SOURCE%/g, webview.cspSource)
 			.replace(/%NONCE%/g, nonce);
 
