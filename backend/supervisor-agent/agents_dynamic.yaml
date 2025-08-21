@@ -1,0 +1,26 @@
+agents:
+  github-agent:
+    id: "github-agent-001"
+    name: "GitHub Repository Agent"
+    type: "GitHubAgent"
+    url: "http://localhost:8001"
+    description: "Specialized agent for GitHub operations and repository management"
+    config:
+      toolsets: ["all"]
+      readonly: true
+      github_token_env: "GITHUB_TOKEN"
+
+  bedrock-agent:
+    id: "bedrock-agent-001"
+    name: "Amazon Bedrock Agent"
+    type: "BedrockAgent"
+    description: "AI agent powered by Amazon Bedrock for text generation and analysis"
+    config:
+      agent_id: "YOUR_BEDROCK_AGENT_ID"
+      region: "us-west-2"
+
+supervisor_config:
+  always_multi_agent: true
+  parallel_execution: true
+  timeout_seconds: 300
+  log_all_interactions: true

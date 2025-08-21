@@ -1,0 +1,237 @@
+import json
+import os
+import asyncio
+from typing import Dict, Any, Optional, List
+from dotenv import load_dotenv
+from agent_registry import AgentRegistry
+from a2a_protocol import A2AProtocol, AgentMessage, TaskRequest, TaskResponse, AgentCard
+from client import BedrockClient
+
+load_dotenv()
+
+
+class SupervisorAgent:
+    def __init__(self, config_file: str = "agents.yaml"):
+        self.agent_id = "supervisor-001"
+        self.name = "Supervisor Agent"
+        self.registry = AgentRegistry(config_file)
+        self.a2a = A2AProtocol(self.agent_id)
+        self.bedrock_client = BedrockClient()
+        self.conversation = []
+        self.active_agents = {}
+        self.task_history = {}
+        
+        self.a2a.register_handler("task_request", self.handle_task_request)
+        self.a2a.register_handler("task_response", self.handle_task_response)
+    
+    async def initialize(self):
+        print(f"🚀 Initializing {self.name}...")
+        
+        agent_configs = self.registry.list_all_agents()
+        print(f"📋 Found {len(agent_configs)} agent configurations")
+        
+        for agent_key, config in agent_configs.items():
+            print(f"  • {config['name']}: {', '.join(config.get('discovered_capabilities', []))}")
+        
+        return len(agent_configs)
+    
+    def get_agent_card(self) -> AgentCard:
+        return AgentCard(
+            agent_id=self.agent_id,
+            name=self.name,
+            description="Supervisor agent that routes tasks to specialized agents",
+            capabilities=[
+                "task_routing",
+                "agent_coordination", 
+                "workflow_management",
+                "multi_agent_orchestration"
+            ],
+            agent_type="SupervisorAgent"
+        )
+    
+    async def handle_task_request(self, message: AgentMessage) -> Optional[AgentMessage]:
+        task_data = message.content
+        task_request = TaskRequest(**task_data)
+        
+        target_agent = self.registry.route_query(task_request.description)
+        
+        if target_agent and self.registry.is_agent_available(target_agent):
+            result = await self.delegate_task(task_request, target_agent)
+            response = TaskResponse(
+                task_id=task_request.task_id,
+                status="completed" if result else "failed",
+                result=result,
+                agent_id=self.agent_id
+            )
+        else:
+            response = TaskResponse(
+                task_id=task_request.task_id,
+                status="failed",
+                error=f"No suitable agent found for task",
+                agent_id=self.agent_id
+            )
+        
+        return response.to_message(message.sender_id)
+    
+    async def handle_task_response(self, message: AgentMessage) -> None:
+        task_response = TaskResponse(**message.content)
+        self.task_history[task_response.task_id] = task_response
+    
+    async def delegate_task(self, task: TaskRequest, target_agent: str) -> Any:
+        if target_agent == "github-agent":
+            return await self.execute_github_task(task)
+        elif target_agent == "analysis-agent":
+            return await self.execute_analysis_task(task)
+        elif target_agent == "planning-agent":
+            return await self.execute_planning_task(task)
+        else:
+            return f"Agent {target_agent} not implemented yet"
+    
+    async def execute_github_task(self, task: TaskRequest) -> str:
+        """Execute task by calling the actual git-mcp-agent HTTP server"""
+        import httpx
+        
+        # Get git-mcp-agent config
+        agent_config = self.registry.get_agent_config("git-mcp-agent")
+        if not agent_config:
+            return "Git-MCP-Agent not found in registry"
+        
+        endpoint = agent_config.get("endpoint")
+        query_url = f"{endpoint}{agent_config.get("query_endpoint", "/query")}"
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    query_url,
+                    json={"query": task.description, "parameters": task.parameters},
+                    timeout=30.0
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("result", "No result from git-mcp-agent")
+                else:
+                    return f"Git-MCP-Agent error: {response.status_code}"
+                    
+        except Exception as e:
+            return f"Failed to connect to git-mcp-agent: {str(e)}"        analysis_prompt = f"""You are a code analysis specialist. Analyze this request:
+
+Task: {task.description}
+Parameters: {json.dumps(task.parameters, indent=2)}
+
+Provide code analysis guidance including:
+- Code quality assessment approaches
+- Metrics to consider
+- Tools and techniques
+- Security considerations
+- Technical debt identification"""
+        
+        messages = [{"role": "system", "content": analysis_prompt}]
+        return await self.bedrock_client.chat(messages)
+    
+    async def execute_planning_task(self, task: TaskRequest) -> str:
+        planning_prompt = f"""You are a project planning specialist. Analyze this request:
+
+Task: {task.description}
+Parameters: {json.dumps(task.parameters, indent=2)}
+
+Provide project planning guidance including:
+- Task breakdown structure
+- Timeline estimation
+- Resource allocation
+- Risk assessment
+- Milestone definition"""
+        
+        messages = [{"role": "system", "content": planning_prompt}]
+        return await self.bedrock_client.chat(messages)
+    
+    async def route_and_execute(self, user_query: str) -> str:
+        target_agent = self.registry.route_query(user_query)
+        agent_config = self.registry.get_agent_config(target_agent)
+        
+        if not agent_config:
+            return f"No suitable agent found for query: {user_query}"
+        
+        task = TaskRequest(
+            task_id="",
+            description=user_query,
+            parameters={"query": user_query},
+            requester_id=self.agent_id
+        )
+        
+        result = await self.delegate_task(task, target_agent)
+        
+        response_prompt = f"""You are a supervisor agent coordinating multiple specialized agents.
+
+User Query: "{user_query}"
+Routed to: {agent_config['name']} ({agent_config['description']})
+Agent Response: {result}
+
+Provide a clear, helpful response to the user that:
+1. Acknowledges which specialized agent handled their request
+2. Presents the agent's response in a user-friendly way
+3. Suggests follow-up actions if appropriate"""
+        
+        messages = [
+            {"role": "system", "content": response_prompt},
+            {"role": "user", "content": user_query}
+        ]
+        
+        return await self.bedrock_client.chat(messages)
+    
+    async def query(self, user_message: str) -> str:
+        self.conversation.append({"role": "user", "content": user_message})
+        
+        if len(self.conversation) > 10:
+            self.conversation = self.conversation[-10:]
+        
+        response = await self.route_and_execute(user_message)
+        
+        self.conversation.append({"role": "assistant", "content": response})
+        return response
+    
+    def get_status(self) -> Dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "name": self.name,
+            "active_agents": len(self.active_agents),
+            "total_tasks": len(self.task_history),
+            "available_capabilities": self.get_all_capabilities()
+        }
+    
+    def get_all_capabilities(self) -> List[str]:
+        all_caps = set()
+        for agent_config in self.registry.list_all_agents().values():
+            all_caps.update(agent_config.get('capabilities', []))
+        return sorted(list(all_caps))
+
+    async def discover_github_agent_capabilities(self, config):
+        """Discover capabilities from actual GitHub agent"""
+        import sys
+        sys.path.append(config.get('path', '/Users/yashac/code/git-mcp-agent'))
+        
+        from agent import GitHubAgent
+        
+        # Initialize the actual GitHub agent
+        github_agent = GitHubAgent(readonly=True)
+        await github_agent.initialize()
+        
+        # Get real capabilities
+        capabilities = github_agent.get_capabilities()
+        
+        # Also get MCP tools as capabilities
+        if hasattr(github_agent, 'mcp_client') and github_agent.mcp_client.tools:
+            mcp_tools = list(github_agent.mcp_client.tools.keys())
+            capabilities.extend(mcp_tools[:10])  # Add first 10 MCP tools
+        
+        return capabilities
+    
+    def get_all_capabilities(self) -> List[str]:
+        """Get all capabilities from discovered agents"""
+        all_caps = set()
+        for agent_config in self.registry.list_all_agents().values():
+            # Use discovered capabilities if available, fallback to static
+            discovered = agent_config.get('discovered_capabilities', [])
+            static = agent_config.get('capabilities', [])
+            all_caps.update(discovered or static)
+        return sorted(list(all_caps))
